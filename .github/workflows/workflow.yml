@@ -60,14 +60,14 @@ jobs:
           sarif_file: trivy-results.sarif
 
       - name: Upload Trivy SARIF report as downloadable artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: trivy-report
           path: trivy-results.sarif
 
       # (2) Escaneo estricto que puede fallar si hay vulnerabilidades críticas
       - name: Trivy Security Gate (fail on CRITICAL)
-        uses: aquasecurity/trivy-action@v0.13.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
           format: table
