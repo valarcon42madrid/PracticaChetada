@@ -79,17 +79,16 @@ jobs:
           name: trivy-report
           path: trivy-results.sarif
 
-      # (2) Escaneo estricto que puede fallar si hay vulnerabilidades críticas
-      - name: Trivy Security Gate (fail on CRITICAL)
+      # (2) Escaneo estricto (manual) que puede fallar si hay vulnerabilidades críticas
+      - name: Trivy Security Gate (fail on CRITICAL, precise mode)
         if: github.event_name != 'pull_request'
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.tag.outputs.tag }}
-          format: table
-          exit-code: 1
-          ignore-unfixed: true
-          severity: CRITICAL
-          args: --detection-priority precise
+        run: |
+          trivy image --severity CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            --format table \
+            --detection-priority precise \
+            ${{ steps.tag.outputs.tag }}
 
       # (3) Notificación a Slack si falla
       - name: Notify Slack on failure
