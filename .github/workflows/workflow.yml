@@ -17,11 +17,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate HTML with tidy (index.html)
+      - name: Validate all HTML templates with tidy
         run: |
           sudo apt-get update
           sudo apt-get install -y tidy
-          tidy -qe ./mysite/singlepage/templates/singlepage/index.html || true
+
+          echo "🔎 Buscando archivos .html para validar..."
+
+          find mysite/templates mysite/singlepage/templates -type f -name '*.html' | while read file; do
+            echo "Validando $file"
+            tidy -qe "$file" || echo "⚠️ Errores encontrados en: $file"
+          done
+
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
