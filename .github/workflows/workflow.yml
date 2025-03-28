@@ -46,11 +46,13 @@ jobs:
 
       # EXTRA: Extraer el primer tag (ej: latest) para Trivy
 
+
       - name: Extract first tag for Trivy
         id: tag
         run: |
           first_tag=$(echo '${{ steps.meta.outputs.tags }}' | cut -d',' -f1)
-          printf "tag=%s\n" "$first_tag" >> $GITHUB_OUTPUT
+          echo "tag=$first_tag" >> tag_output.txt
+          cat tag_output.txt >> $GITHUB_OUTPUT
 
 
       # (1) Escaneo y generación de reporte SARIF
