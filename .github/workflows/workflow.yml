@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and Push Docker Imagev2
 
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ vars.DOCKER_USERNAME }}/my-image
+          images: ${{ vars.DOCKER_USERNAME }}/imagev2
 
       # (d) Log in to Docker Hub
       - name: Log in to Docker Hub
@@ -30,7 +30,7 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       # Build and optionally push the Docker image
-      - name: Build and push Docker image
+      - name: Build and push Docker imagev2
         uses: docker/build-push-action@v5
         with:
           context: .
