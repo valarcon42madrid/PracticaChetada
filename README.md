@@ -48,9 +48,10 @@ Con los tags generados automáticamente.
 ### 6. 🔒 Escaneo de seguridad con Trivy
 La imagen recién construida es escaneada por [`Trivy`](https://github.com/aquasecurity/trivy), detectando vulnerabilidades conocidas en paquetes del sistema.
 
-#### El workflow realiza 2 escaneos:
-- **Normal**, para generar un reporte de vulnerabilidades.
-- **Estricto**, que falla si se detecta al menos una vulnerabilidad crítica (`CRITICAL`).
+#### El workflow realiza 2 escaneos con Trivy:
+- **Análisis principal**, que genera un reporte de vulnerabilidades en formato SARIF y lo sube a GitHub como artefacto y para Code Scanning.
+- **Análisis estricto (modo preciso)**, que identifica vulnerabilidades críticas (`CRITICAL`) pero **no bloquea el workflow**. Ideal para auditar sin detener el despliegue.
+
 
 ### 7. 📄 Subida de reportes
 Se generan y suben automáticamente los siguientes reportes:
