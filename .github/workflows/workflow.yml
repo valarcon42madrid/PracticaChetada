@@ -29,7 +29,6 @@ jobs:
             tidy -qe "$file" || echo "⚠️ Errores encontrados en: $file"
           done
 
-
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -38,17 +37,17 @@ jobs:
 
       #### DJANGO IMAGE ####
       - name: Build Django image
-        run: docker build -t ${{ vars.DOCKER_USERNAME }}/django ./mysite
+        run: docker build -t ${{ vars.DOCKER_USERNAME }}/django:latest ./mysite
 
       - name: Push Django image
         if: github.event_name != 'pull_request'
-        run: docker push ${{ vars.DOCKER_USERNAME }}/django
+        run: docker push ${{ vars.DOCKER_USERNAME }}/django:latest
 
       - name: Scan Django image (SARIF)
         if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ vars.DOCKER_USERNAME }}/django
+          image-ref: ${{ vars.DOCKER_USERNAME }}/django:latest
           format: sarif
           output: django-trivy.sarif
           exit-code: 0
@@ -59,6 +58,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: django-trivy.sarif
+          category: django-scan
 
       - name: Upload Django SARIF as artifact
         if: github.event_name != 'pull_request'
@@ -75,21 +75,21 @@ jobs:
             --exit-code 0 \
             --format table \
             --detection-priority precise \
-            ${{ vars.DOCKER_USERNAME }}/django
+            ${{ vars.DOCKER_USERNAME }}/django:latest
 
       #### NGINX IMAGE ####
       - name: Build Nginx image
-        run: docker build -t ${{ vars.DOCKER_USERNAME }}/nginx ./nginx
+        run: docker build -t ${{ vars.DOCKER_USERNAME }}/nginx:latest ./nginx
 
       - name: Push Nginx image
         if: github.event_name != 'pull_request'
-        run: docker push ${{ vars.DOCKER_USERNAME }}/nginx
+        run: docker push ${{ vars.DOCKER_USERNAME }}/nginx:latest
 
       - name: Scan Nginx image (SARIF)
         if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ vars.DOCKER_USERNAME }}/nginx
+          image-ref: ${{ vars.DOCKER_USERNAME }}/nginx:latest
           format: sarif
           output: nginx-trivy.sarif
           exit-code: 0
@@ -100,6 +100,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: nginx-trivy.sarif
+          category: nginx-scan
 
       - name: Upload Nginx SARIF as artifact
         if: github.event_name != 'pull_request'
@@ -116,7 +117,7 @@ jobs:
             --exit-code 0 \
             --format table \
             --detection-priority precise \
-            ${{ vars.DOCKER_USERNAME }}/nginx
+            ${{ vars.DOCKER_USERNAME }}/nginx:latest
 
       #### SLACK NOTIFICATION ON FAILURE ####
       - name: Notify Slack on failure
@@ -125,4 +126,3 @@ jobs:
           curl -X POST -H 'Content-type: application/json' \
             --data '{"text":"🚨 *GitHub Actions:* Falló el build o el análisis de seguridad de las imágenes Django o NGINX.\n🔍 Revisa los logs 👉 ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" }' \
             ${{ secrets.SLACK_WEBHOOK_URL }}
-
