@@ -46,7 +46,7 @@ jobs:
 
       # (1) Escaneo y generación de reporte SARIF
       - name: Scan Docker image with Trivy (SARIF)
-        uses: aquasecurity/trivy-action@v0.13.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
           format: sarif
