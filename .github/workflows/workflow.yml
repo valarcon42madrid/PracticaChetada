@@ -1,4 +1,4 @@
-name: Build and Push Docker Imagev2
+name: Build and Push Docker Images (Django + Nginx)
 
 on:
   push:
@@ -10,28 +10,18 @@ permissions:
   security-events: write
 
 jobs:
-  build-and-push:
+  build-and-scan:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate HTML with tidy
+      - name: Validate HTML with tidy (index.html)
         run: |
           sudo apt-get update
           sudo apt-get install -y tidy
-          tidy -qe index.html
-
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ vars.DOCKER_USERNAME }}/imagev2
-          tags: |
-            type=raw,value=latest
-            type=ref,event=branch
-            type=sha
+          tidy -qe ./mysite/singlepage/templates/singlepage/index.html || true
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -39,48 +29,38 @@ jobs:
           username: ${{ vars.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Build and push Docker imagev2
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+      #### DJANGO IMAGE ####
+      - name: Build Django image
+        run: docker build -t ${{ vars.DOCKER_USERNAME }}/django ./mysite
 
-      # EXTRA: Extraer el primer tag (ej: latest) para Trivy
-      - name: Extract first tag for Trivy
-        id: tag
-        run: |
-          first_tag=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
-          echo "tag=$first_tag" >> tag_output.txt
-          cat tag_output.txt >> $GITHUB_OUTPUT
+      - name: Push Django image
+        if: github.event_name != 'pull_request'
+        run: docker push ${{ vars.DOCKER_USERNAME }}/django
 
-      # (1) Escaneo y generación de reporte SARIF
-      - name: Scan Docker image with Trivy (SARIF)
+      - name: Scan Django image (SARIF)
         if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ steps.tag.outputs.tag }}
+          image-ref: ${{ vars.DOCKER_USERNAME }}/django
           format: sarif
-          output: trivy-results.sarif
+          output: django-trivy.sarif
           exit-code: 0
           ignore-unfixed: true
 
-      - name: Upload Trivy SARIF report to GitHub
+      - name: Upload Django SARIF to GitHub
         if: github.event_name != 'pull_request'
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: trivy-results.sarif
+          sarif_file: django-trivy.sarif
 
-      - name: Upload Trivy SARIF report as downloadable artifact
+      - name: Upload Django SARIF as artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-report
-          path: trivy-results.sarif
+          name: django-trivy-report
+          path: django-trivy.sarif
 
-      # (2) Escaneo estricto (manual) que puede fallar si hay vulnerabilidades críticas
-      - name: Trivy Security Gate (fail on CRITICAL, precise mode)
+      - name: Trivy CRITICAL scan (Django)
         if: github.event_name != 'pull_request'
         run: |
           trivy image --severity CRITICAL \
@@ -88,12 +68,54 @@ jobs:
             --exit-code 0 \
             --format table \
             --detection-priority precise \
-            ${{ steps.tag.outputs.tag }}
+            ${{ vars.DOCKER_USERNAME }}/django
 
-      # (3) Notificación a Slack si falla
+      #### NGINX IMAGE ####
+      - name: Build Nginx image
+        run: docker build -t ${{ vars.DOCKER_USERNAME }}/nginx ./nginx
+
+      - name: Push Nginx image
+        if: github.event_name != 'pull_request'
+        run: docker push ${{ vars.DOCKER_USERNAME }}/nginx
+
+      - name: Scan Nginx image (SARIF)
+        if: github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ vars.DOCKER_USERNAME }}/nginx
+          format: sarif
+          output: nginx-trivy.sarif
+          exit-code: 0
+          ignore-unfixed: true
+
+      - name: Upload Nginx SARIF to GitHub
+        if: github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: nginx-trivy.sarif
+
+      - name: Upload Nginx SARIF as artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nginx-trivy-report
+          path: nginx-trivy.sarif
+
+      - name: Trivy CRITICAL scan (Nginx)
+        if: github.event_name != 'pull_request'
+        run: |
+          trivy image --severity CRITICAL \
+            --ignore-unfixed \
+            --exit-code 0 \
+            --format table \
+            --detection-priority precise \
+            ${{ vars.DOCKER_USERNAME }}/nginx
+
+      #### SLACK NOTIFICATION ON FAILURE ####
       - name: Notify Slack on failure
         if: failure() && github.event_name != 'pull_request'
         run: |
           curl -X POST -H 'Content-type: application/json' \
-            --data '{"text":"🚨 *GitHub Actions:* Build or security scan *failed* for imagev2.\n🔍 Revisa los logs 👉 ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" }' \
+            --data '{"text":"🚨 *GitHub Actions:* Falló el build o el análisis de seguridad de las imágenes Django o NGINX.\n🔍 Revisa los logs 👉 ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" }' \
             ${{ secrets.SLACK_WEBHOOK_URL }}
+
