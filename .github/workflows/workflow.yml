@@ -11,25 +11,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # (b) Checkout the code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # (c) Extract metadata from Git/GitHub for Docker
+      - name: Validate HTML with tidy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tidy
+          tidy -qe index.html
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ vars.DOCKER_USERNAME }}/imagev2
+          tags: |
+            type=raw,value=latest
+            type=ref,event=branch
+            type=sha
 
-      # (d) Log in to Docker Hub
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      # Build and optionally push the Docker image
       - name: Build and push Docker imagev2
         uses: docker/build-push-action@v5
         with:
@@ -37,4 +43,43 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      # (1) Escaneo y generación de reporte SARIF
+      - name: Scan Docker image with Trivy (SARIF)
+        uses: aquasecurity/trivy-action@v0.13.0
+        with:
+          image-ref: ${{ steps.meta.outputs.tags }}
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: 0
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF report to GitHub
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Upload Trivy SARIF report as downloadable artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: trivy-report
+          path: trivy-results.sarif
+
+      # (2) Escaneo estricto que puede fallar si hay vulnerabilidades críticas
+      - name: Trivy Security Gate (fail on CRITICAL)
+        uses: aquasecurity/trivy-action@v0.13.0
+        with:
+          image-ref: ${{ steps.meta.outputs.tags }}
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: CRITICAL
+
+      # (3) Notificación a Slack si falló alguna parte del workflow
+      - name: Notify Slack on failure
+        if: failure()
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"🚨 *GitHub Actions:* Build or security scan *failed* for imagev2.\n🔍 Revisa los logs 👉 ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" }' \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
 
