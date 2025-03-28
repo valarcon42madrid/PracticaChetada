@@ -60,38 +60,6 @@ Se generan y suben automáticamente los siguientes reportes:
 ### 8. 📣 Notificación por Slack
 Si alguna parte del workflow falla, se envía automáticamente un mensaje a un canal de Slack utilizando un webhook definido en el secreto `SLACK_WEBHOOK_URL`.
 
----
-
-## 🛠️ Requisitos
-
-Antes de que el workflow funcione correctamente, asegurate de tener configurado:
-
-- `DOCKER_USERNAME` como una **variable de repositorio**
-- `DOCKER_TOKEN` como un **secreto** (token de acceso personal a Docker Hub)
-- `SLACK_WEBHOOK_URL` como un **secreto**, con el Webhook de tu canal de Slack
-
----
-
-## 🚀 Resultado
-
-Este pipeline garantiza que:
-- Tu HTML esté limpio
-- Tu imagen Docker sea generada y publicada automáticamente
-- Los problemas de seguridad sean detectados
-- Tengas visibilidad en tiempo real vía Slack
-
----
-
-## 📁 Estructura esperada
-
-. ├── index.html ├── Dockerfile ├── .github/ │ └── workflows/ │ └── workflow.yml
-
-yaml
-Copiar
-Editar
-
----
-
 ## 🤝 Créditos
 
 Workflow basado en acciones oficiales de:
