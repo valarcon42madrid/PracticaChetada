@@ -44,22 +44,31 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      # EXTRA: Extraer el primer tag (ej: latest) para Trivy
+      - name: Extract first tag for Trivy
+        id: tag
+        run: |
+          echo "tag=$(echo '${{ steps.meta.outputs.tags }}' | cut -d',' -f1)" >> $GITHUB_OUTPUT
+
       # (1) Escaneo y generación de reporte SARIF
       - name: Scan Docker image with Trivy (SARIF)
+        if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ steps.meta.outputs.tags }}
+          image-ref: ${{ steps.tag.outputs.tag }}
           format: sarif
           output: trivy-results.sarif
           exit-code: 0
           ignore-unfixed: true
 
       - name: Upload Trivy SARIF report to GitHub
+        if: github.event_name != 'pull_request'
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: trivy-results.sarif
 
       - name: Upload Trivy SARIF report as downloadable artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: trivy-report
@@ -67,17 +76,18 @@ jobs:
 
       # (2) Escaneo estricto que puede fallar si hay vulnerabilidades críticas
       - name: Trivy Security Gate (fail on CRITICAL)
+        if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ steps.meta.outputs.tags }}
+          image-ref: ${{ steps.tag.outputs.tag }}
           format: table
           exit-code: 1
           ignore-unfixed: true
           severity: CRITICAL
 
-      # (3) Notificación a Slack si falló alguna parte del workflow
+      # (3) Notificación a Slack si falla
       - name: Notify Slack on failure
-        if: failure()
+        if: failure() && github.event_name != 'pull_request'
         run: |
           curl -X POST -H 'Content-type: application/json' \
             --data '{"text":"🚨 *GitHub Actions:* Build or security scan *failed* for imagev2.\n🔍 Revisa los logs 👉 ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" }' \
