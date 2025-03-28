@@ -45,15 +45,12 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
       # EXTRA: Extraer el primer tag (ej: latest) para Trivy
-
-
       - name: Extract first tag for Trivy
         id: tag
         run: |
-          first_tag=$(echo '${{ steps.meta.outputs.tags }}' | cut -d',' -f1)
+          first_tag=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
           echo "tag=$first_tag" >> tag_output.txt
           cat tag_output.txt >> $GITHUB_OUTPUT
-
 
       # (1) Escaneo y generación de reporte SARIF
       - name: Scan Docker image with Trivy (SARIF)
@@ -97,4 +94,3 @@ jobs:
           curl -X POST -H 'Content-type: application/json' \
             --data '{"text":"🚨 *GitHub Actions:* Build or security scan *failed* for imagev2.\n🔍 Revisa los logs 👉 ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" }' \
             ${{ secrets.SLACK_WEBHOOK_URL }}
-
