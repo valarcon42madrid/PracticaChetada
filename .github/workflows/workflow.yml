@@ -89,6 +89,7 @@ jobs:
           exit-code: 1
           ignore-unfixed: true
           severity: CRITICAL
+          args: --detection-priority precise
 
       # (3) Notificación a Slack si falla
       - name: Notify Slack on failure
